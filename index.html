@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tiziano – Bestellformular</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #f8f2f4;
+      font-family: system-ui, sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const KATEGORIEN = [
+  { name: "🥛 Milchprodukte", color: "#8B1A3A", produkte: [
+    { id: "hmilch", name: "H-Milch 3,5%", einheit: "10L Bag-in-Box" },
+    { id: "sahne33", name: "Sahne 33%", einheit: "5kg Pack" },
+    { id: "kaffeesahne", name: "Kaffee Sahne", einheit: "Packung" },
+    { id: "magermilch", name: "Magermilch Pulver", einheit: "25kg Sack" },
+    { id: "natjog", name: "Natur Yoghurt", einheit: "5kg Eimer" },
+    { id: "erdjog", name: "Erdbeer Yoghurt", einheit: "5kg Eimer" },
+  ]},
+  { name: "🧀 Käse & Ei", color: "#6B3A00", produkte: [
+    { id: "gouda", name: "Gouda in Scheiben", einheit: "1kg Schale" },
+    { id: "vollei", name: "Vollei flüssig", einheit: "1kg Pack" },
+    { id: "eier", name: "Eier B", einheit: "Stück" },
+  ]},
+  { name: "❄️ TK-Früchte", color: "#1A5276", produkte: [
+    { id: "tkerdb", name: "TK Erdbeeren", einheit: "10kg Karton" },
+    { id: "tkhimb", name: "TK Himbeeren", einheit: "10kg Karton" },
+    { id: "tkheid", name: "TK Heidelbeeren", einheit: "10kg Karton" },
+    { id: "tkbeer", name: "TK Beeren Mischung", einheit: "10kg Karton" },
+  ]},
+  { name: "🧂 Trockenwaren", color: "#1E5533", produkte: [
+    { id: "zucker", name: "Zucker KF fein", einheit: "25kg Sack" },
+    { id: "dextrose", name: "Dextrose", einheit: "kg" },
+    { id: "mehl", name: "Weizenmehl", einheit: "kg" },
+    { id: "puder", name: "Puderzucker", einheit: "kg" },
+    { id: "zitrone", name: "Zitronensaft", einheit: "Liter" },
+    { id: "schinken", name: "Gekochter Schinken", einheit: "Packung" },
+  ]},
+];
+
+const LIEFERANTEN = [
+  { name: "Backring Halle-Leipzig", email: "info@backring-halle-leipzig.com" },
+  { name: "Anderer Lieferant", email: "" },
+];
+
+function fmt(d) {
+  if (!d) return "";
+  const [y, m, day] = d.split("-");
+  return `${day}.${m}.${y}`;
+}
+
+function App() {
+  const today = new Date().toISOString().split("T")[0];
+  const [datum, setDatum] = React.useState(today);
+  const [lieferant, setLieferant] = React.useState(LIEFERANTEN[0]);
+  const [mengen, setMengen] = React.useState({});
+  const [notiz, setNotiz] = React.useState("");
+  const [nr, setNr] = React.useState("B" + Date.now().toString().slice(-6));
+  const [status, setStatus] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const alle = KATEGORIEN.flatMap(k => k.produkte.map(p => ({ ...p, farbe: k.color })));
+  const liste = alle.filter(p => mengen[p.id] > 0);
+  const setM = (id, v) => setMengen(prev => ({ ...prev, [id]: Math.max(0, Number(v) || 0) }));
+  const reset = () => { setMengen({}); setNotiz(""); setNr("B" + Date.now().toString().slice(-6)); setStatus(""); };
+
+  const genPDF = async () => {
+    if (!liste.length) return;
+    setLoading(true); setStatus("");
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const W = 210, M = 16; let y = 18;
+      doc.setFillColor(139, 26, 58);
+      doc.rect(M, y, W - M * 2, 13, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255,255,255);
+      doc.text("TIZIANO  CAFFÈ. GELATO.", M + 4, y + 8);
+      doc.setFont("helvetica","normal"); doc.setFontSize(7);
+      doc.text("Tiziano Leipzig GmbH & Co.KG · Paunsdorfer Allee 1 · 04329 Leipzig", W-M, y+8, {align:"right"});
+      y += 18;
+      doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(139,26,58);
+      doc.text("BESTELLUNG", M, y);
+      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(80,80,80);
+      doc.text(`Nr: ${nr}`, W-M, y, {align:"right"}); y += 7;
+      doc.setFontSize(9); doc.setTextColor(60,60,60);
+      doc.setFont("helvetica","bold"); doc.text("Datum:", M, y);
+      doc.setFont("helvetica","normal"); doc.text(fmt(datum), M+18, y);
+      doc.setFont("helvetica","bold"); doc.text("Lieferant:", W/2, y);
+      doc.setFont("helvetica","normal"); doc.text(lieferant.name, W/2+20, y);
+      y += 7;
+      doc.setFont("helvetica","bold"); doc.text("Kundennr.:", M, y);
+      doc.setFont("helvetica","normal"); doc.text("55008", M+22, y);
+      y += 9;
+      doc.setDrawColor(139,26,58); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y += 5;
+      doc.setFillColor(139,26,58); doc.rect(M, y-3, W-M*2, 7, "F");
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+      doc.text("ARTIKEL", M+2, y+1); doc.text("EINHEIT", M+88, y+1); doc.text("MENGE", M+138, y+1); y += 6;
+      liste.forEach((item, i) => {
+        if (i%2===0) { doc.setFillColor(252,246,248); doc.rect(M,y-3,W-M*2,7,"F"); }
+        doc.setTextColor(30,30,30); doc.setFont("helvetica","normal"); doc.setFontSize(8);
+        doc.text(item.name, M+2, y+1); doc.text(item.einheit, M+88, y+1);
+        doc.setFont("helvetica","bold"); doc.text(String(mengen[item.id]), M+138, y+1); y += 7;
+      });
+      y += 4; doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(M,y,W-M,y); y += 6;
+      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(139,26,58);
+      doc.text(`Total: ${liste.length} Positionen`, M, y); y += 7;
+      if (notiz) {
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(60,60,60);
+        doc.text("Anmerkungen:", M, y); y += 5;
+        doc.setFont("helvetica","normal");
+        doc.text(doc.splitTextToSize(notiz, W-M*2), M, y);
+      }
+      doc.setDrawColor(139,26,58); doc.setLineWidth(0.4); doc.line(M,278,W-M,278);
+      doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(130,130,130);
+      doc.text(`Tiziano Leipzig GmbH & Co.KG · Nr. ${nr} · ${fmt(datum)}`, W/2, 283, {align:"center"});
+      doc.save(`Bestellung_${nr}_${datum}.pdf`);
+      const subj = encodeURIComponent(`Bestellung ${nr} – Tiziano Leipzig – ${fmt(datum)}`);
+      const body = encodeURIComponent(`Sehr geehrte Damen und Herren,\n\nBitte finden Sie im Anhang unsere Bestellung vom ${fmt(datum)} (Nr. ${nr}).\n\n${liste.map(p=>`• ${p.name} (${p.einheit}): ${mengen[p.id]}`).join("\n")}${notiz?`\n\nAnmerkungen: ${notiz}`:""}\n\nMit freundlichen Grüßen\nTiziano Leipzig GmbH & Co.KG`);
+      setTimeout(() => { window.location.href = `mailto:${lieferant.email}?subject=${subj}&body=${body}`; }, 700);
+      setStatus("✅ PDF gespeichert! Bitte als Anhang zur E-Mail hinzufügen.");
+    } catch(e) { setStatus("❌ Fehler: " + e.message); }
+    setLoading(false);
+  };
+
+  const card = { background:"#fff", borderRadius:12, boxShadow:"0 2px 10px rgba(0,0,0,0.07)", padding:"14px", marginBottom:12 };
+  const lbl = { display:"block", fontSize:10, color:"#999", fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", marginBottom:3 };
+  const inp = { width:"100%", padding:"9px 10px", border:"2px solid #e8d5d5", borderRadius:8, fontSize:14, color:"#333", outline:"none", boxSizing:"border-box", background:"#fff", fontFamily:"inherit" };
+  const bst = { width:34, height:34, border:"none", borderRadius:8, fontSize:20, cursor:"pointer", fontWeight:"bold" };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#f8f2f4", fontFamily:"system-ui,sans-serif" }}>
+      <div style={{ background:"linear-gradient(90deg,#8B1A3A,#5C3A1E)", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>
+        <div>
+          <div style={{ color:"#fff", fontWeight:"bold", fontSize:20, letterSpacing:2 }}>TIZIANO</div>
+          <div style={{ color:"#E8C9A0", fontSize:10, letterSpacing:3 }}>CAFFÈ. GELATO.</div>
+        </div>
+        <div style={{ color:"#E8C9A0", fontSize:12 }}>Bestellformular</div>
+      </div>
+
+      <div style={{ maxWidth:660, margin:"0 auto", padding:"14px 10px 80px" }}>
+        <div style={card}>
+          <div style={{ fontWeight:"bold", color:"#8B1A3A", fontSize:15, marginBottom:12 }}>📋 Neue Bestellung</div>
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+            <div style={{ flex:1, minWidth:120 }}>
+              <label style={lbl}>Datum</label>
+              <input type="date" value={datum} onChange={e=>setDatum(e.target.value)} style={inp} />
+            </div>
+            <div style={{ flex:2, minWidth:170 }}>
+              <label style={lbl}>Lieferant</label>
+              <select value={lieferant.name} onChange={e=>setLieferant(LIEFERANTEN.find(l=>l.name===e.target.value))} style={inp}>
+                {LIEFERANTEN.map(l=><option key={l.name}>{l.name}</option>)}
+              </select>
+            </div>
+            <div style={{ flex:1, minWidth:120 }}>
+              <label style={lbl}>Bestell-Nr.</label>
+              <input type="text" value={nr} onChange={e=>setNr(e.target.value)} style={inp} />
+            </div>
+          </div>
+          {lieferant.email && <div style={{ marginTop:6, fontSize:11, color:"#8B1A3A" }}>📧 {lieferant.email}</div>}
+        </div>
+
+        {KATEGORIEN.map(kat => (
+          <div key={kat.name} style={{ ...card, borderLeft:`4px solid ${kat.color}` }}>
+            <div style={{ fontWeight:"bold", color:kat.color, fontSize:13, marginBottom:8 }}>{kat.name}</div>
+            {kat.produkte.map((prod, i) => {
+              const m = mengen[prod.id] || 0;
+              const aktiv = m > 0;
+              return (
+                <div key={prod.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 4px", borderBottom: i < kat.produkte.length-1 ? "1px solid #f0e8ea" : "none", background: aktiv ? `${kat.color}12` : "transparent", borderRadius:6, marginBottom:2 }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:14, fontWeight: aktiv?"bold":"normal", color: aktiv ? kat.color : "#333" }}>{prod.name}</div>
+                    <div style={{ fontSize:11, color:"#bbb" }}>{prod.einheit}</div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <button onClick={()=>setM(prod.id, m-1)} style={{ ...bst, background: aktiv ? kat.color : "#e8e8e8", color: aktiv?"#fff":"#888" }}>−</button>
+                    <input type="number" min="0" value={m||""} onChange={e=>setM(prod.id,e.target.value)} placeholder="0"
+                      style={{ width:52, textAlign:"center", padding:"6px 2px", border:`2px solid ${aktiv?kat.color:"#ddd"}`, borderRadius:8, fontSize:15, fontWeight:aktiv?"bold":"normal", color:aktiv?kat.color:"#666", outline:"none", background:"#fff" }} />
+                    <button onClick={()=>setM(prod.id, m+1)} style={{ ...bst, background:kat.color, color:"#fff" }}>+</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+        <div style={card}>
+          <label style={lbl}>Anmerkungen</label>
+          <textarea value={notiz} onChange={e=>setNotiz(e.target.value)} rows={3} placeholder="Besondere Hinweise..." style={{ ...inp, resize:"vertical", minHeight:65 }} />
+        </div>
+
+        {liste.length > 0 && (
+          <div style={{ ...card, background:"#fff8f9", border:"1px solid #e8c0ca" }}>
+            <div style={{ fontWeight:"bold", color:"#8B1A3A", marginBottom:8, fontSize:13 }}>Übersicht — {liste.length} Positionen</div>
+            {liste.map(item => (
+              <div key={item.id} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", borderBottom:"1px solid #f5eaec" }}>
+                <span style={{ fontSize:13, color:"#444" }}>{item.name}</span>
+                <span style={{ fontWeight:"bold", color:item.farbe, fontSize:14 }}>{mengen[item.id]}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {status && (
+          <div style={{ padding:"12px 14px", borderRadius:10, marginBottom:10, background: status.startsWith("✅")?"#d4edda":"#f8d7da", color: status.startsWith("✅")?"#155724":"#721c24", fontSize:13 }}>
+            {status}
+          </div>
+        )}
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={genPDF} disabled={loading || !liste.length}
+            style={{ flex:2, padding:"15px 10px", background: !liste.length?"#ccc":"linear-gradient(90deg,#8B1A3A,#5C3A1E)", color:"#fff", border:"none", borderRadius:12, fontSize:15, fontWeight:"bold", cursor: !liste.length?"not-allowed":"pointer", boxShadow: liste.length?"0 4px 14px rgba(139,26,58,0.3)":"none" }}>
+            {loading ? "⏳ Erstelle PDF..." : `📄 PDF & E-Mail (${liste.length} Pos.)`}
+          </button>
+          <button onClick={reset} style={{ flex:1, padding:"15px 10px", background:"#fff", color:"#8B1A3A", border:"2px solid #8B1A3A", borderRadius:12, fontSize:14, fontWeight:"bold", cursor:"pointer" }}>
+            🔄 Reset
+          </button>
+        </div>
+        {!liste.length && <p style={{ textAlign:"center", color:"#ccc", fontSize:12, marginTop:6 }}>Bitte mindestens ein Produkt auswählen</p>}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+
+</html>
