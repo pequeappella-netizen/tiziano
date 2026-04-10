@@ -126,8 +126,8 @@ function App() {
       window.open(blobUrl, '_blank');
       const subj = encodeURIComponent(`Bestellung ${nr} – Tiziano Leipzig – ${fmt(datum)}`);
       const body = encodeURIComponent(`Sehr geehrte Damen und Herren,\n\nBitte finden Sie im Anhang unsere Bestellung vom ${fmt(datum)} (Nr. ${nr}).\n\n${liste.map(p=>`• ${p.name} (${p.einheit}): ${mengen[p.id]}`).join("\n")}${notiz?`\n\nAnmerkungen: ${notiz}`:""}\n\nMit freundlichen Grüßen\nTiziano Leipzig GmbH & Co.KG`);
-      setTimeout(() => { window.location.href = `mailto:${lieferant.email}?subject=${subj}&body=${body}`; }, 700);
-      setStatus("✅ PDF gespeichert! Bitte als Anhang zur E-Mail hinzufügen.");
+      const mailLink = `mailto:${lieferant.email}?subject=${subj}&body=${body}`;
+      setStatus(`✅ PDF abierto! <a href="${mailLink}" style="color:#155724;font-weight:bold;text-decoration:underline;">📧 Pulsa aquí para abrir el email</a>`);
     } catch(e) { setStatus("❌ Fehler: " + e.message); }
     setLoading(false);
   };
@@ -212,7 +212,7 @@ function App() {
 
         {status && (
           <div style={{ padding:"12px 14px", borderRadius:10, marginBottom:10, background: status.startsWith("✅")?"#d4edda":"#f8d7da", color: status.startsWith("✅")?"#155724":"#721c24", fontSize:13 }}>
-            {status}
+            <span dangerouslySetInnerHTML={{__html: status}} />
           </div>
         )}
 
